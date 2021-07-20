@@ -1,6 +1,14 @@
 # Realsense-Transport
 Python RealSense tranport with async multicast
 
+### Features
+
+1. Transport Depth and Color Image with UDP ✔️
+2. Support Async and MultiCast ✔️
+3. Add Compression Alogorithm ([RVL](https://www.researchgate.net/publication/320315129_Fast_Lossless_Depth_Image_Compression) or lz4) `partially supported`
+4. Transport Depth and Color Image with TCP `WIP`
+
+
 ### Requirements
 
 1. RealSense -> Can change any with numpy array image
