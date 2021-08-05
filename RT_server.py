@@ -67,8 +67,9 @@ class MulticastServerProtocol:
         
         print(f"Recieved from {addr}:{self.timeStamp} - {self.transMode} - {self.depthScale}")
         self.t1_past = self.t1
-        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depImg, alpha=0.03), cv2.COLORMAP_JET)
+        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depImg, alpha=3), cv2.COLORMAP_JET)
         depth_colormap = cv2.resize(depth_colormap, dsize=None ,fx=3, fy=3)
+        #depth_colormap = cv2.cvtColor(depth_colormap, cv2.COLOR_GRAY2BGR)
         cv2.putText(depth_colormap, str(self.timeStamp), (0, 10),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0))
         cv2.putText(depth_colormap, str(round(rateTime, 3)) + "s - " + str(round(1/rateTime,2)) + "FPS", (0, 23),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0))
         if self.show_feed:

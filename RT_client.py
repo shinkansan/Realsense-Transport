@@ -119,13 +119,13 @@ class realSense:
 
     def debugViewer(self, depth, color=None):
         
-        grey_color = 153
+        #grey_color = 153
         depth_image_3d = np.dstack((depth,depth,depth)) #depth image is 1 channel, color is 3 channels
-        bg_removed = np.where( (depth_image_3d <= 1), grey_color, color)
+        #bg_removed = np.where( (depth_image_3d <= 1), grey_color, color)
         #bg_removed = np.where((depth_image_3d > clipping_distance) | (depth_image_3d <= 0), grey_color, color_image)
         
-        depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth, alpha=0.03), cv2.COLORMAP_JET)
-        images = np.hstack((color, depth_colormap))
+        #depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth, alpha=0.03), cv2.COLORMAP_JET)
+        images = np.hstack((color, depth_image_3d))
 
         cv2.namedWindow('send', cv2.WINDOW_NORMAL)
         cv2.imshow('send', images)
