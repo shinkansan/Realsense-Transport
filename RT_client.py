@@ -24,6 +24,9 @@ chunk_size = 4096
 transmitMode = 2
 # 0 for Depth, 1 for Color, 2 for Both color and depth
 
+clipping_distance_in_meters = 12 #Clipping_in_meter
+
+
 class realSense:
 
     def __init__(self, iscolor=True):
@@ -53,6 +56,7 @@ class realSense:
         pipeline_profile = pipeline.start(cfg)
         sensor = pipeline_profile.get_device().first_depth_sensor()
         depth_scale = sensor.get_depth_scale()
+        self.clipping_distance = clipping_distance_in_meters / depth_scale
         return pipeline, depth_scale
 
     def retrieveImage(self, pipeline):
@@ -71,6 +75,11 @@ class realSense:
             # represent the frame as a numpy array
             depthData = depth.as_frame().get_data()        
             depthMat = np.asanyarray(depthData)
+            grey_color = 127
+            #depth_image_3d = np.dstack((depth_image,depth_image,depth_image)) #depth image is 1 channel, color is 3 channels
+            depthMat = np.where((depthMat > self.clipping_distance) | (depthMat <= 0), grey_color, depthMat)
+            depthMat = np.multiply(np.divide(depthMat,self.clipping_distance), 255).astype(np.uint8)
+            depthMat = cv2.GaussianBlur(depthMat, (5,5), 0)
             ts = frames.get_timestamp()
             if self.isColorMode:
                 colorMat = np.asanyarray(color.get_data())
