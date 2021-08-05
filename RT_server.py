@@ -18,6 +18,7 @@ if not hasattr(socket, 'SO_REUSEPORT'):
 import struct
 import pickle
 import logging
+import time
 
 BROADCAST_ADDR = "239.255.255.250"
 PORT = 1024
@@ -38,38 +39,52 @@ class image_handler():
     def show_depth(self):
         pass
 
-
+imageFeed = 0
 
 class MulticastServerProtocol:
 
-    def __init__(self):
+    def __init__(self, show_feed=False):
         print("Launching Realsense Camera Server")
+        self.t1_past = 0
+        self.show_feed = show_feed
 
     def connection_made(self, transport):
         self.transport = transport
 
 
     def datagram_received(self, data, addr):
-        print(struct.unpack('<h', data[:2])) # Mode
-        print(struct.unpack('<d', data[2:10])) # Scale
-        print(struct.unpack('<d', data[10:18])) # TimeStamp
-        print(struct.unpack('<I', data[18:22])) # len
+        global imageFeed
+        self.workFlag = True
+        self.transMode = struct.unpack('<h', data[:2]) # Mode
+        self.depthScale = struct.unpack('<d', data[2:10]) # Scale
+        self.timeStamp = struct.unpack('<d', data[10:18]) # TimeStamp
+        #print(struct.unpack('<I', data[18:22])) # len
         depLen = struct.unpack('<I', data[18:22])# Image
         assert depLen != len(data[22:]), "Integrity Error"
         depImg = pickle.loads(data[22:])
+        self.t1 = time.time()
+        rateTime = self.t1 - self.t1_past
         
+        print(f"Recieved from {addr}:{self.timeStamp} - {self.transMode} - {self.depthScale}")
+        self.t1_past = self.t1
         depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depImg, alpha=0.03), cv2.COLORMAP_JET)
-        cv2.namedWindow('recieved', cv2.WINDOW_NORMAL)
-        cv2.imshow("recieved", depth_colormap)
-        cv2.waitKey(1)
-        print(depImg.shape)
+        depth_colormap = cv2.resize(depth_colormap, dsize=None ,fx=3, fy=3)
+        cv2.putText(depth_colormap, str(self.timeStamp), (0, 10),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0))
+        cv2.putText(depth_colormap, str(round(rateTime, 3)) + "s - " + str(round(1/rateTime,2)) + "FPS", (0, 23),cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0))
+        if self.show_feed:
+            cv2.namedWindow(f'recieved-{addr}', cv2.WINDOW_NORMAL)
+            cv2.imshow(f"recieved-{addr}", depth_colormap)
+            cv2.waitKey(1)
+        #print(depImg.shape)
+        imageFeed = [addr, depth_colormap]
         #print('Received {!r} from {!r}'.format(data, addr))
         #data = "I received {!r}".format(data).encode("ascii")
         #print('Send {!r} to {!r}'.format(data, addr))
         #self.transport.sendto(data, addr)
 
-if __name__ == "__main__":
-    loop = asyncio.get_event_loop()
+def do_main():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     loop.set_debug(True)
     logging.basicConfig(level=logging.DEBUG)
 
@@ -86,14 +101,21 @@ if __name__ == "__main__":
         sock.bind(('', PORT))
         mreq = group_bin + struct.pack('@I', 0)
         sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_JOIN_GROUP, mreq)
-
-
+    
+    
 
     listen = loop.create_datagram_endpoint(
         MulticastServerProtocol,
         sock=sock,
-    )
-    transport, protocol = loop.run_until_complete(listen)
 
+    )
+    
+    transport, protocol = loop.run_until_complete(listen)
+    
     loop.run_forever()
     loop.close()
+
+
+if __name__ == "__main__":
+    do_main()
+

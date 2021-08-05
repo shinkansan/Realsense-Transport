@@ -1,6 +1,6 @@
 # RT (Realsense Transport) Client
 # Author : Gwanjun, Shin
-# Date : 2021.07.21.(2021.08.02., Buffer and debig Mode updatE)
+# Date : 2021.07.21.
 # Acknowledgment : Fork from EtherSense(https://github.com/krejov100/EtherSense.git)
 
 # Reinforce Depth Compression and Color+Depth Transportation Function
@@ -18,7 +18,6 @@ import logging
 
 PORT = 1024
 BROADCAST_ADDR = "239.255.255.250"
-DEBUG_MODE = False
 
 chunk_size = 4096
 
@@ -39,7 +38,11 @@ class realSense:
         print("Open RS Pipeline")
         cfg = rs.config()
         cfg.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
-        cfg.enable_stream(rs.stream.color, 960, 540, rs.format.bgr8, 30)
+
+        if device_product_line == 'L500':
+            config.enable_stream(rs.stream.color, 960, 540, rs.format.bgr8, 30)
+        else:
+            config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
         pipeline = rs.pipeline()
         pipeline_profile = pipeline.start(cfg)
         sensor = pipeline_profile.get_device().first_depth_sensor()
@@ -47,11 +50,10 @@ class realSense:
         return pipeline, depth_scale
 
     def retrieveImage(self, pipeline):
-
         frames = pipeline.wait_for_frames()
         aligned_frames = self.align.process(frames)
         # take owner ship of the frame for further processing
-        #aligned_frames.keep()
+        aligned_frames.keep()
         depth = aligned_frames.get_depth_frame()
         if self.isColorMode:
             color = aligned_frames.get_color_frame()
@@ -100,7 +102,6 @@ class realSense:
         #print(frame_data)
         return frame_data
 
-
     def debugViewer(self, depth, color=None):
         
         grey_color = 153
@@ -125,17 +126,13 @@ class DiscoveryClientProtocol:
         self.transport = None
         self.addr = addr
 
-        #for debug
-        if DEBUG_MODE:
-            self.cap = cv2.VideoCapture(0)
-        else:
-            self.rsHelper = realSense()
+        self.rsHelper = realSense()
 
     def connection_made(self, transport):
         self.transport = transport
         sock = self.transport.get_extra_info('socket')
 
-        sock.settimeout(0)
+        sock.settimeout(3)
         addrinfo = socket.getaddrinfo(self.addr, None)[0]
         if addrinfo[0] == socket.AF_INET: # IPv4
             ttl = struct.pack('@i', 1)
@@ -161,36 +158,12 @@ class DiscoveryClientProtocol:
 
     def sender(self):
         
-        #data = struct.pack("<d", 0.1235325)
-        #data2 = struct.pack("<d", 0.3215)
-        #data = b''.join([data, data2])
-        if DEBUG_MODE:
-            data = self.debugMode()
-        else:
-            data = self.rsHelper.packetWriter()
+        data = struct.pack("<d", 0.1235325)
+        data2 = struct.pack("<d", 0.3215)
+        data = b''.join([data, data2])
+        data = self.rsHelper.packetWriter()
         #print(len(data))
-        if data is None: return
         self.transport.sendto(data, (self.addr,PORT))
-
-    def debugMode(self):
-        ret, frame = self.cap.read()
-        if ret:
-            frame = cv2.resize(frame, dsize=(160, 120))
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-            depthFrame = pickle.dumps(frame)
-            colorFrame = pickle.dumps(frame)
-            data = b''.join([depthFrame, colorFrame])
-            modeFrame = struct.pack('<h', 0)
-            scaleFrame = struct.pack('<d', 0.75939912)
-            tsFrame = struct.pack('<d', 0.75939912)
-            deplenFrame = struct.pack('<I', len(depthFrame))
-            colorlenFrame = struct.pack('<I', len(colorFrame))
-            frame_data = b''.join([modeFrame, scaleFrame, tsFrame, deplenFrame, depthFrame])
-            #print(frame_data)
-            return frame_data
-        
-        
         
         
 
